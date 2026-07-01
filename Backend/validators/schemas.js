@@ -62,8 +62,9 @@ export const issueBookSchema = Joi.object({
   userName: Joi.string().required().messages({
     'string.empty': 'User name is required.'
   }),
-  issueDate: Joi.date().iso().required().messages({
+  issueDate: Joi.date().iso().max('now').required().messages({
     'date.base': 'Issue date must be a valid date.',
+    'date.max': 'Issue date cannot be in the future.',
     'any.required': 'Issue date is required.'
   })
 });
@@ -75,8 +76,9 @@ export const returnBookSchema = Joi.object({
   userName: Joi.string().required().messages({
     'string.empty': 'User name is required.'
   }),
-  returnDate: Joi.date().iso().required().messages({
+  returnDate: Joi.date().iso().max('now').required().messages({
     'date.base': 'Return date must be a valid date.',
+    'date.max': 'Return date cannot be in the future.',
     'any.required': 'Return date is required.'
   })
 });
