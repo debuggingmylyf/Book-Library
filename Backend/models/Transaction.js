@@ -7,5 +7,10 @@ const transactionSchema = new mongoose.Schema({
   returnDate: { type: Date }
 });
 
+// Add indices for frequently queried fields
+transactionSchema.index({ bookId: 1 });
+transactionSchema.index({ userId: 1 });
+transactionSchema.index({ issueDate: 1 });
+
 const Transaction = mongoose.model('Transaction', transactionSchema);
 export default Transaction;

@@ -61,4 +61,6 @@ live-demo-frontend-: https://book-library-fronted.vercel.app/
 
 - **GET**: `http://localhost:5001/api/books/issued-books?userName=John Doe`
 
+### 9. **Get Books Issued Within a Date Range**:
 
+- **GET**: `http://localhost:5001/api/books/issued-in-date-range?startDate=2024-09-01&endDate=2024-09-15`
