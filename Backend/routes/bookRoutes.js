@@ -105,8 +105,22 @@ router.post('/issue-book', authenticate, validate(issueBookSchema), async (req, 
     const book = await Book.findOne({ name: bookName });
     const user = await User.findOne({ name: userName });
 
-    if (!book || !user) {
-      return errorResponse(res, 'Book or User not found', null, 404);
+    if (!book) {
+      return errorResponse(res, 'Book not found', null, 404);
+    }
+    if (!user) {
+      return errorResponse(res, 'User not found', null, 404);
+    }
+
+    // Check if book is already issued to this user
+    const existingTransaction = await Transaction.findOne({
+      bookId: book._id,
+      userId: user._id,
+      returnDate: null
+    });
+
+    if (existingTransaction) {
+      return errorResponse(res, 'This book is already issued to this user and has not been returned yet', null, 400);
     }
 
     const newTransaction = new Transaction({
@@ -116,7 +130,14 @@ router.post('/issue-book', authenticate, validate(issueBookSchema), async (req, 
     });
 
     await newTransaction.save();
-    return successResponse(res, 'Book issued successfully', { transaction: newTransaction }, 201);
+    return successResponse(res, 'Book issued successfully', {
+      transaction: {
+        id: newTransaction._id,
+        bookName: book.name,
+        userName: user.name,
+        issueDate: newTransaction.issueDate
+      }
+    }, 201);
   } catch (err) {
     console.error('Error issuing book:', err);
     return errorResponse(res, 'Failed to issue book', null, 500);
@@ -147,13 +168,32 @@ router.post('/return-book', authenticate, validate(returnBookSchema), async (req
 
     const issueDate = new Date(transaction.issueDate);
     const returnDateObj = new Date(returnDate);
-    const daysRented = Math.ceil((returnDateObj - issueDate) / (1000 * 60 * 60 * 24));
-    const rent = book.rentPerDay * daysRented;
+
+    // Validate return date is not before issue date
+    if (returnDateObj < issueDate) {
+      return errorResponse(res, 'Return date cannot be earlier than issue date', {
+        issueDate: transaction.issueDate,
+        providedReturnDate: returnDate
+      }, 400);
+    }
+
+    // Calculate days rented (minimum 1 day if same day)
+    const diffTime = returnDateObj - issueDate;
+    const daysRented = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    
+    // Calculate rent (ensure non-negative)
+    const rent = Math.max(0, book.rentPerDay * daysRented);
 
     transaction.returnDate = returnDateObj;
     await transaction.save();
 
-    return successResponse(res, 'Book returned successfully', { daysRented, totalRent: rent });
+    return successResponse(res, 'Book returned successfully', {
+      issueDate: transaction.issueDate,
+      returnDate: transaction.returnDate,
+      daysRented,
+      rentPerDay: book.rentPerDay,
+      totalRent: rent
+    });
   } catch (err) {
     console.error('Error returning book:', err);
     return errorResponse(res, 'Failed to return book', null, 500);
@@ -207,18 +247,33 @@ router.get('/total-rent', async (req, res) => {
     // Find all transactions for this book
     const transactions = await Transaction.find({ bookId: book._id });
 
-    // Calculate total rent
+    // Calculate total rent with validation
     let totalRent = 0;
+    let returnedCount = 0;
+    
     transactions.forEach(tx => {
       if (tx.returnDate) {
-        const daysRented = Math.ceil((new Date(tx.returnDate) - new Date(tx.issueDate)) / (1000 * 60 * 60 * 24));
-        totalRent += book.rentPerDay * daysRented;
+        const issueDate = new Date(tx.issueDate);
+        const returnDate = new Date(tx.returnDate);
+        
+        // Only calculate if return date is valid (not before issue date)
+        if (returnDate >= issueDate) {
+          const daysRented = Math.max(1, Math.ceil((returnDate - issueDate) / (1000 * 60 * 60 * 24)));
+          totalRent += Math.max(0, book.rentPerDay * daysRented);
+          returnedCount++;
+        }
       }
     });
 
+    // Ensure total rent is never negative
+    totalRent = Math.max(0, totalRent);
+
     return successResponse(res, 'Total rent calculated successfully', {
       bookName: book.name,
+      rentPerDay: book.rentPerDay,
       totalTransactions: transactions.length,
+      returnedBooks: returnedCount,
+      currentlyIssued: transactions.length - returnedCount,
       totalRent
     });
   } catch (err) {
