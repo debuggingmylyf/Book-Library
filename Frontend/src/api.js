@@ -58,10 +58,16 @@ export const logout = () => {
   localStorage.removeItem('user');
 };
 
-// Get current user
+// Get current user from localStorage
 export const getCurrentUser = () => {
   const user = localStorage.getItem('user');
   return user ? JSON.parse(user) : null;
+};
+
+// Get current user profile from API
+export const getProfile = async () => {
+  const response = await api.get('/auth/me');
+  return response.data;
 };
 
 // ============ BOOK ENDPOINTS ============
@@ -131,14 +137,20 @@ export const getIssuedBooksByUser = async (userName) => {
 };
 
 // Get users who issued a specific book
-export const getIssuedUsers = async (bookName) => {
-  const response = await api.get(`/books/issued-users?bookName=${bookName}`);
-  return response.data;
-};
+// export const getIssuedUsers = async (bookName) => {
+//   const response = await api.get(`/books/issued-users?bookName=${bookName}`);
+//   return response.data;
+// };
 
 // Get books issued within a date range
 export const getBooksInDateRange = async (startDate, endDate) => {
   const response = await api.get(`/books/issued-in-date-range?startDate=${startDate}&endDate=${endDate}`);
+  return response.data;
+};
+
+// Get users who issued a specific book
+export const getIssuedUsers = async (bookName) => {
+  const response = await api.get(`/books/issued-users?bookName=${encodeURIComponent(bookName)}`);
   return response.data;
 };
 

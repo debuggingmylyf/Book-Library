@@ -38,7 +38,14 @@ mongoose.connect(mongoDBUrl)
 
 // Define a simple route
 app.get('/', (req, res) => {
-  res.send('Welcome to Book Library API');
+  return successResponse(res, 'Welcome to Book Library API', {
+    version: '1.0.0',
+    endpoints: {
+      auth: ['/api/auth/register', '/api/auth/login', '/api/auth/refresh-token'],
+      books: ['/api/books/all', '/api/books/search', '/api/books/books'],
+      transactions: ['/api/books/issue-book', '/api/books/return-book', '/api/books/issued-books', '/api/books/total-rent']
+    }
+  });
 });
 
 // ============ AUTH ROUTES ============
@@ -124,6 +131,19 @@ app.post('/api/auth/login', validate(loginSchema), async (req, res) => {
   }
 });
 
+// Get current user profile
+app.get('/api/auth/me', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return errorResponse(res, 'User not found', null, 404);
+    }
+    return successResponse(res, 'User profile fetched successfully', { user });
+  } catch (error) {
+    console.error('Profile error:', error);
+    return errorResponse(res, 'Failed to fetch profile', null, 500);
+  }
+});
 // Refresh token route
 app.post('/api/auth/refresh-token', async (req, res) => {
   try {

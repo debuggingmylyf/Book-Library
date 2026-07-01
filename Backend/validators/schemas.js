@@ -81,6 +81,38 @@ export const returnBookSchema = Joi.object({
   })
 });
 
+export const filterByRentSchema = Joi.object({
+  minRent: Joi.number().min(0).required().messages({
+    'number.base': 'Min rent must be a number.',
+    'number.min': 'Min rent cannot be negative.',
+    'any.required': 'Min rent is required.'
+  }),
+  maxRent: Joi.number().min(0).required().messages({
+    'number.base': 'Max rent must be a number.',
+    'number.min': 'Max rent cannot be negative.',
+    'any.required': 'Max rent is required.'
+  })
+}).custom((value, helpers) => {
+  if (Number(value.minRent) > Number(value.maxRent)) {
+    return helpers.error('any.invalid');
+  }
+  return value;
+}).messages({
+  'any.invalid': 'Min rent cannot be greater than max rent.'
+});
+
+export const dateRangeSchema = Joi.object({
+  startDate: Joi.date().iso().required().messages({
+    'date.base': 'Start date must be a valid date.',
+    'any.required': 'Start date is required.'
+  }),
+  endDate: Joi.date().iso().required().min(Joi.ref('startDate')).messages({
+    'date.base': 'End date must be a valid date.',
+    'any.required': 'End date is required.',
+    'date.min': 'End date must be after or equal to start date.'
+  })
+});
+
 export const validate = (schema) => {
   return (req, res, next) => {
     const { error, value } = schema.validate(req.body, {
